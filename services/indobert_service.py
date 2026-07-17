@@ -48,7 +48,11 @@ def predict_indobert(text_after_cleaning: str) -> dict:
     # Selalu gunakan _LABEL_MAP manual kita untuk konsistensi
     label = _LABEL_MAP.get(pred_idx, str(pred_idx))
 
+    # Ekstrak token untuk ditampilkan di UI
+    tokens = _tokenizer.tokenize(text_after_cleaning)
+
     return {
         "label": str(label),
         "confidence": round(confidence, 4),
+        "tokens": tokens,
     }

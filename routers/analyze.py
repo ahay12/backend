@@ -83,6 +83,9 @@ async def analyze_batch(file: UploadFile = File(...)):
     indobert_correct = 0
     total_labeled = 0
 
+    svm_cm = {"tp": 0, "fp": 0, "tn": 0, "fn": 0}
+    indobert_cm = {"tp": 0, "fp": 0, "tn": 0, "fn": 0}
+
     for _, row in df.iterrows():
         text = str(row["content"]) if pd.notna(row["content"]) else ""
         actual = str(row["sentiment"]).strip() if has_labels and pd.notna(row.get("sentiment")) else None
@@ -110,22 +113,56 @@ async def analyze_batch(file: UploadFile = File(...)):
                 svm_correct += 1
             if indobert_label == actual:
                 indobert_correct += 1
+            
+            # Update confusion matrix
+            is_actual_pos = (actual == "positif")
+            
+            is_svm_pos = (svm_label == "positif")
+            if is_actual_pos and is_svm_pos: svm_cm["tp"] += 1
+            elif not is_actual_pos and not is_svm_pos: svm_cm["tn"] += 1
+            elif not is_actual_pos and is_svm_pos: svm_cm["fp"] += 1
+            elif is_actual_pos and not is_svm_pos: svm_cm["fn"] += 1
+
+            is_indo_pos = (indobert_label == "positif")
+            if is_actual_pos and is_indo_pos: indobert_cm["tp"] += 1
+            elif not is_actual_pos and not is_indo_pos: indobert_cm["tn"] += 1
+            elif not is_actual_pos and is_indo_pos: indobert_cm["fp"] += 1
+            elif is_actual_pos and not is_indo_pos: indobert_cm["fn"] += 1
+
+        svm_reason = None
+        if svm_res.get("word_weights") and len(svm_res["word_weights"]) > 0:
+            top = svm_res["word_weights"][0]
+            svm_reason = f"Kata '{top['word']}' sangat memengaruhi ({'+' if top['weight']>0 else ''}{top['weight']:.2f})"
+            
+        indo_reason = None
+        if indobert_res.get("tokens") and len(indobert_res["tokens"]) > 0:
+            tokens = indobert_res["tokens"]
+            indo_reason = f"Tokens: {' '.join(tokens[:5])}{'...' if len(tokens)>5 else ''}"
 
         results.append(
             BatchResultItem(
                 content=text,
                 svm=svm_label,
+                confidence_svm=svm_res.get("confidence"),
+                svm_reason=svm_reason,
                 indobert=indobert_label,
+                confidence_indobert=indobert_res.get("confidence"),
+                indobert_reason=indo_reason,
                 actual=actual,
             )
         )
 
     accuracy = None
+    confusion_matrix_result = None
     if has_labels and total_labeled > 0:
         accuracy = BatchAccuracy(
             svm=round(svm_correct / total_labeled, 4),
             indobert=round(indobert_correct / total_labeled, 4),
         )
+        confusion_matrix_result = {
+            "svm": svm_cm,
+            "indobert": indobert_cm
+        }
 
     return BatchAnalyzeResponse(
         total=len(results),
@@ -136,4 +173,5 @@ async def analyze_batch(file: UploadFile = File(...)):
             indobert=dict(indobert_counts),
         ),
         accuracy=accuracy,
+        confusion_matrix=confusion_matrix_result,
     )

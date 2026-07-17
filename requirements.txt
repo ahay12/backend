@@ -4,7 +4,7 @@ python-multipart==0.0.12
 torch==2.2.2
 transformers==4.46.3
 safetensors==0.4.5
-scikit-learn==1.5.2
+scikit-learn==1.6.1
 nltk==3.9.1
 pandas==2.2.3
 numpy==1.26.4

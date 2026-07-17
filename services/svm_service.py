@@ -47,7 +47,27 @@ def predict_svm(text_after_stopword: str) -> dict:
         # Multi-class: ambil max score
         confidence = _sigmoid(float(np.max(decision)))
 
+    # Extract feature weights
+    word_weights = []
+    if hasattr(_svm_model, "coef_") and hasattr(_tfidf, "get_feature_names_out"):
+        feature_names = _tfidf.get_feature_names_out()
+        # Binary classification usually has shape (1, n_features)
+        coef = _svm_model.coef_[0] if np.ndim(_svm_model.coef_) > 1 else _svm_model.coef_
+        nonzero_indices = vec.nonzero()[1]
+        for idx in nonzero_indices:
+            tfidf_val = vec[0, idx]
+            weight = coef[idx] * tfidf_val
+            word_weights.append({
+                "word": feature_names[idx],
+                "weight": float(weight)
+            })
+        
+        # Sort by absolute weight magnitude to find most impactful words
+        word_weights.sort(key=lambda x: abs(x["weight"]), reverse=True)
+        word_weights = word_weights[:10]
+
     return {
         "label": label,
         "confidence": round(confidence, 4),
+        "word_weights": word_weights,
     }
