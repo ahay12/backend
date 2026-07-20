@@ -109,21 +109,26 @@ async def analyze_batch(file: UploadFile = File(...)):
 
         if actual:
             total_labeled += 1
-            if svm_label == actual:
+            
+            actual_norm = "positif" if actual.lower() in ["positif", "positive"] else "negatif"
+            svm_norm = "positif" if svm_label.lower() in ["positif", "positive"] else "negatif"
+            indobert_norm = "positif" if indobert_label.lower() in ["positif", "positive"] else "negatif"
+
+            if svm_norm == actual_norm:
                 svm_correct += 1
-            if indobert_label == actual:
+            if indobert_norm == actual_norm:
                 indobert_correct += 1
             
             # Update confusion matrix
-            is_actual_pos = (actual == "positif")
+            is_actual_pos = (actual_norm == "positif")
             
-            is_svm_pos = (svm_label == "positif")
+            is_svm_pos = (svm_norm == "positif")
             if is_actual_pos and is_svm_pos: svm_cm["tp"] += 1
             elif not is_actual_pos and not is_svm_pos: svm_cm["tn"] += 1
             elif not is_actual_pos and is_svm_pos: svm_cm["fp"] += 1
             elif is_actual_pos and not is_svm_pos: svm_cm["fn"] += 1
 
-            is_indo_pos = (indobert_label == "positif")
+            is_indo_pos = (indobert_norm == "positif")
             if is_actual_pos and is_indo_pos: indobert_cm["tp"] += 1
             elif not is_actual_pos and not is_indo_pos: indobert_cm["tn"] += 1
             elif not is_actual_pos and is_indo_pos: indobert_cm["fp"] += 1
